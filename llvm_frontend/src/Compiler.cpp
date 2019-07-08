@@ -19,15 +19,14 @@ Compiler::Compiler(const CompileContext &compile_context) : compile_context_(com
 void Compiler::GetSymbolTable(CompileInstance &instance) {
   LOG_TRACE << "获取" << instance.filename_ << "的符号表";
   GetSymbolLexer lexer;
+  lexer.SetOnNewToken([](Token*token){
+        LOG_TRACE << token->Name();
+        delete token;
+  });
   ifstream ifstream1(instance.filename_);
   char ch;
-  while (ifstream1 >> ch) {
-    if(lexer.input(ch) > 0){
-      auto token = lexer.GetLastToken();
-      if (token) {
-        LOG_TRACE << token->Name();
-      }
-    }
+  while (ifstream1.get(ch)) {
+    lexer.input(ch);
   }
 }
 void Compiler::CompileAll() {

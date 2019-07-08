@@ -3,6 +3,9 @@
 //
 
 #include "Lexer.h"
+#include "log.h"
+#include "Operator.h"
+using namespace std;
 namespace cdh {
 
 Token::Token() {
@@ -44,72 +47,136 @@ int GetSymbolLexer::input(char ch) {
     error_message_ = "缓冲区溢出";
     return -1;
   }
-  if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
-    buffer_[buffer_size_++] = ch;
-    return 0;
-  }
-
-//  if ((ch >= '!' && ch <= '_') || (ch >= 'a' && ch <= '~')) {// 空白符之外的所有可用字符
-  if (ch == ' ') {
-    NewToken();
-  } else if (ch == ',' || ch == '(' || ch == ')' || ch == '{' || ch == '}') {
-    NewToken();
-    buffer_[buffer_size_++] = ch;
-  } else if (buffer_size_ == 1) {
-    bool is_binary_operator = false;
-    char ch0 = buffer_[0];
-    switch (ch) {
-      case '=': {
-        if (ch0 == '=' || ch0 == '>' || ch0 == '<' || ch0 == '!') {
-          is_binary_operator = true;
-        }
-        break;
-      }
-      case '<': {
-        if (ch0 == '<') {
-          is_binary_operator = true;
-        }
-        break;
-      }
-      case '>': {
-        if (ch0 == '>') {
-          is_binary_operator = true;
-        }
-        break;
-      }
-      case ':': {
-        if (ch0 == ':') {
-          is_binary_operator = true;
-        }
-        break;
-      }
-    }
-    if (is_binary_operator) {
-      buffer_[1] = ch;
-      NewToken();
+  //if (buffer_size_) {
+  //  buffer_[buffer_size_] = 0;
+  //  LOG_TRACE << buffer_;
+  //} else {
+  //  LOG_TRACE << "\\0";
+  //}
+  if (buffer_size_ == 0) {
+    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_') {
+      current_token_type_ = kCurrentTokenTypeLetter;
+    } else if ((ch >= '0' && ch <= '9')) {
+      current_token_type_ = kCurrentTokenTypeNumber;
+    } else if (Operator::Helper()[ch].Priority() >= 0) {
+      current_token_type_ = kCurrentTokenTypeOperator;
     } else {
-      NewToken();
+      current_token_type_ = kCurrentTokenTypeUnknown;
+    }
+    if (current_token_type_ != kCurrentTokenTypeUnknown)
       buffer_[buffer_size_++] = ch;
+  } else {
+    switch (current_token_type_) {
+      case kCurrentTokenTypeUnknown:break;
+      case kCurrentTokenTypeLetter: {
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+          buffer_[buffer_size_++] = ch;
+        } else {
+          CallOnNewToken();
+          input(ch);
+        }
+        break;
+      }
+      case kCurrentTokenTypeNumber: {
+        if ((ch >= '0' && ch <= '9') || ch == '.') {
+          buffer_[buffer_size_++] = ch;
+        } else {
+          CallOnNewToken();
+          input(ch);
+        }
+        break;
+      }
+      case kCurrentTokenTypeOperator: {
+        const Operator *operator_ = &Operator::Helper();
+        for (int i = 0; i < buffer_size_; ++i) {
+          operator_ = &(*operator_)[buffer_[i]];
+        }
+        if ((*operator_).HasSubOperator()) {
+          if ((*operator_)[ch].Priority() < 0) { //
+            CallOnNewToken();
+            input(ch);
+          }else{
+            buffer_[buffer_size_++] = ch;
+          }
+        } else {
+          CallOnNewToken();
+          input(ch);
+        }
+      }
     }
   }
-  return last_token_ ? 1 : 0;
+  //
+  //if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+  //  buffer_[buffer_size_++] = ch;
+  //} else {
+  //  if (!on_getting_operator_) {
+  //    CallOnNewToken();
+  //    if (Operator::Helper()[ch].Priority() < 0) {
+  //    } else if (!Operator::Helper()[ch].HasSubOperator()) {
+  //      buffer_[buffer_size_++] = ch;
+  //      CallOnNewToken();
+  //    } else {
+  //      buffer_[buffer_size_++] = ch;
+  //      on_getting_operator_ = true;
+  //    }
+  //  } else {
+  //    bool is_single_operator = false;
+  //    char ch0 = buffer_[0];
+  //    switch (ch) {
+  //      case '=': {
+  //        if (ch0 == '=' || ch0 == '>' || ch0 == '<' || ch0 == '!') {
+  //          is_single_operator = true;
+  //        }
+  //        break;
+  //      }
+  //      case '<': {
+  //        if (ch0 == '<') {
+  //          is_single_operator = true;
+  //        }
+  //        break;
+  //      }
+  //      case '>': {
+  //        if (ch0 == '>') {
+  //          is_single_operator = true;
+  //        }
+  //        break;
+  //      }
+  //      case ':': {
+  //        if (ch0 == ':') {
+  //          is_single_operator = true;
+  //        }
+  //        break;
+  //      }
+  //      default:break;
+  //    }
+  //    if (is_single_operator) {
+  //      buffer_[1] = ch;
+  //      buffer_size_ = 2;
+  //      CallOnNewToken();
+  //    } else {
+  //      CallOnNewToken();
+  //      input(ch);
+  //      CallOnNewToken();
+  //    }
+  //    on_getting_operator_ = false;
+  //  }
+  //  return 0;
+  //}
+  return 0;
 }
 const std::string &GetSymbolLexer::GetErrorMessage() const {
   return error_message_;
 }
-void GetSymbolLexer::NewToken() {
-  if (buffer_size_) {
-    if (last_token_)
-      delete last_token_;
-    last_token_ = new Token;
+void GetSymbolLexer::CallOnNewToken() {
+  if (buffer_size_ > 0) {
+    auto token = new Token;
     buffer_[buffer_size_] = 0;
-    last_token_->SetName(buffer_);
+    token->SetName(buffer_);
+    on_new_token_(token);
     buffer_size_ = 0;
-  } else {
-    last_token_ = nullptr;
   }
 }
-Token *GetSymbolLexer::GetLastToken() const {
-  return last_token_;
+void GetSymbolLexer::SetOnNewToken(const std::function<void(Token *)> &on_new_token) {
+  on_new_token_ = on_new_token;
 }
 }

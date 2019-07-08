@@ -7,6 +7,8 @@
 
 #include <cstddef>
 #include <string>
+#include <functional>
+#include "Operator.h"
 
 namespace cdh {
 
@@ -49,20 +51,28 @@ class Lexer {
 };
 
 class GetSymbolLexer{
+  enum CurrentTokenType{
+    kCurrentTokenTypeUnknown,
+    kCurrentTokenTypeLetter,
+    kCurrentTokenTypeNumber,
+    kCurrentTokenTypeOperator,
+  };
  public:
   GetSymbolLexer();
   int input(char ch);
   const std::string &GetErrorMessage() const;
+  void SetOnNewToken(const std::function<void(Token *)> &on_new_token);
  private:
+  std::function<void(Token*)> on_new_token_;
   constexpr static size_t kBufferSize = 256;
   size_t buffer_size_{};
   char buffer_[kBufferSize];
   std::string error_message_;
   Token * last_token_{};
- public:
-  Token *GetLastToken() const;
+  CurrentTokenType current_token_type_;
  private:
-  void NewToken();
+  void CallOnNewToken();
+  bool inputting_letter;
 };
 
 }

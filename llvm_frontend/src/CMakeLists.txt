@@ -14,7 +14,7 @@ add_executable(llvm_frontend
         CompileManager.cpp
         CompileManager.h
         log.cpp
-        CompileInstance.cpp CompileInstance.h Compiler.cpp Compiler.h CompileContext.cpp CompileContext.h CompileTarget.cpp CompileTarget.h)
+        CompileInstance.cpp CompileInstance.h Compiler.cpp Compiler.h CompileContext.cpp CompileContext.h CompileTarget.cpp CompileTarget.h Operator.cpp Operator.h)
 
 target_link_libraries(llvm_frontend
         ${Boost_LIBRARIES}
