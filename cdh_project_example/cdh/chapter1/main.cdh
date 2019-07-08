@@ -1,0 +1,11 @@
+namespace cdh::chapter1{
+
+int Foo(int j,int k){
+  return 1;
+}
+
+int main(int argc,int8**argv){
+  int j = Foo();
+  return j;
+}
+}
